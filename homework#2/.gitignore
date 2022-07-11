@@ -1,0 +1,4 @@
+# files'extentions to be ignored in git
+*.code-workspace
+build
+.vscode
