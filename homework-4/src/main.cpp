@@ -26,5 +26,7 @@ int main() {
          ast->print(std::cout);
     }
 
+    delete ast;
+
     return 0;
 }
