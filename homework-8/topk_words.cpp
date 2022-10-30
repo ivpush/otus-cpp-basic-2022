@@ -33,9 +33,9 @@ inline std::string to_lower (
 
 // count words in stream
 //
-void count_words (
+Counter * count_words (
       char * fName              // input file name
-    , Counter * pCounter
+//    , Counter * pCounter
   ) 
 {
     std::ifstream stream {fName};
@@ -44,6 +44,8 @@ void count_words (
         throw std::runtime_error{"Failed to open"};
     }
 
+    Counter * pCounter = new Counter;
+
     std::for_each (std::istream_iterator<std::string>(stream),
                    std::istream_iterator<std::string>(),
                    [&pCounter](const std::string &s) 
@@ -51,6 +53,7 @@ void count_words (
                             ++(*pCounter)[to_lower(s)];
                         }
                   );    
+    return pCounter;
 }
 
 // print top k counters
@@ -94,38 +97,35 @@ int main (int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    std::vector<std::future<void>> tTask;   // counter tasks - one task per file
-    tTask.reserve (argc - 1);               // constrained by number of parameters
-    std::vector<Counter *> tDict;           // Dict - one Dict per file
-    tDict.reserve (argc - 1);               // constrained by number of parameters
+    std::vector<std::future<Counter *>> tTask;   // counter tasks - one task per file
+    tTask.reserve (argc - 1);                    // constrained by number of parameters
 
     auto start = std::chrono::high_resolution_clock::now ();     // start time = current time
     
     for (int i = 1; i < argc; ++i)          // start a task for each files 
-    {
-        tDict.emplace_back (new Counter);   // get a new dict for a new task
-        tTask.emplace_back (std::async (std::launch::async, count_words, argv[i], tDict[i-1]));  // start a new task
-    }
+        tTask.emplace_back (std::async (std::launch::async, count_words, argv[i]));  // start a new task
 
     --argc;     // number of file names 
 
     Counter freq_dict;                      // total words counter 
-    bool success = true;
+    bool success = true;                    // success indicator
     std::vector<std::string> filesFailed;   // vector to accumulate failed files
+    Counter * pCounter = nullptr;           // counter of current task
 
     for (int i = 0; i < argc; ++i)          // go through all tasks
     {
         try {
-            tTask[i].get();              // wait for task completion
+            pCounter = tTask[i].get();      // wait for task completion
         } catch (std::exception &e) {
             filesFailed.emplace_back (std::string(argv[i+1]) + " - " + e.what()); 
             success = false;
         }
         if (success)
-            for (const auto& [word, count] : *tDict[i])     // accumulate words counts
+        {
+            for (const auto& [word, count] : *pCounter)     // accumulate words counts
                 freq_dict [word] += count;
-
-        delete tDict[i];        // release memory
+            delete pCounter;        // release memory block
+        }
     }
 
     if (success)    // print out the results
