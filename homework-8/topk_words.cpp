@@ -35,7 +35,6 @@ inline std::string to_lower (
 //
 Counter * count_words (
       char * fName              // input file name
-//    , Counter * pCounter
   ) 
 {
     std::ifstream stream {fName};
