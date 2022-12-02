@@ -16,6 +16,7 @@ add_executable(
     book2base-main.cpp
     book_processing.cpp
     book2base.cpp
+    database.cpp
     pugixml.cpp
     utils.cpp
 )

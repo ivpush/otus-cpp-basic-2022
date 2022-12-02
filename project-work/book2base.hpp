@@ -11,23 +11,20 @@
 
 const int   maxLineLen = 8192;              // max length for read tag
 
-// db related info
-//
-struct sqlite3;
+class iDatabase;
 
-int db_open (const char * name, sqlite3** db);
-int db_close (sqlite3* db);
-const char * db_error (sqlite3 * db);
+bool book_processing (iDatabase *db, const char* path);
 
 // class fb2info - информация из тегов fb2
 //
-class fb2info   {
-// public:    
+class fb2info   
+{
     // <title-info>
     std::string     author_first_name;      // <author> <first-name>
     std::string     author_middle_name;     //          <middle-name>
     std::string     author_last_name;       //          <last-name>
     std::string     book_title;             // <book-title>
+    std::vector<std::string>    book_genre; // <genre>
     std::string     annotation;             // <annotation>
     std::string     lang;                   // <lang>
     std::string     src_lang;               // <src-lang>
@@ -67,21 +64,33 @@ public:
         translator_last_name.clear();  
         year.clear();
         location.clear();
+        book_genre.clear();
         valid = false;
     }
     bool isValid () {  return valid; }
 
-    friend class recAuthor;
-    friend class recBook;
-    friend class recAnnotation;
+    const char * get_auth_firstname() {    return author_first_name.c_str();  }
+    const char * get_auth_midname  () {    return author_middle_name.c_str();  }
+    const char * get_auth_lastname () {    return author_last_name.c_str();  }
+    
+    const char * get_tran_firstname() {    return translator_first_name.c_str();  }
+    const char * get_tran_midname  () {    return translator_middle_name.c_str();  }
+    const char * get_tran_lastname () {    return translator_last_name.c_str();  }
+    
+    const char * get_title () {    return book_title.c_str();  }
+    const char * get_annotation () {    return annotation.c_str();  }
+    const char * get_lang () {    return lang.c_str();  }
+    const char * get_src_lang () {    return src_lang.c_str();  }
+    const char * get_year () {    return year.c_str();  }
+    const char * get_location () {    return location.c_str();  }
 
-    friend recAuthor getAuthor     (const fb2info& fb2);
-    friend recAuthor getTranslator (const fb2info& fb2);
+    std::vector<std::string>& get_genre ()  { return book_genre; }
 };
 
 // class recAuthor - запись о авторе в БД
 //
-class recAuthor {
+class recAuthor 
+{
     int             au_id;          // author id
     std::string     au_firstname;   // author first name - имя
     std::string     au_midname;     // author middle name - отчество
@@ -99,19 +108,23 @@ public:
     recAuthor (const recAuthor& other) = delete;
     recAuthor (recAuthor&& other) = delete;
     ~recAuthor () = default;
-    recAuthor &operator=(const fb2info& fb2)    // assign from fb2 info
+    recAuthor &operator=(fb2info& fb2)    // assign from fb2 info
     {
         au_id = 0;
-        au_firstname = fb2.author_first_name;
-        au_midname   = fb2.author_middle_name;
-        au_lastname  = fb2.author_last_name;
+        au_firstname = fb2.get_auth_firstname ();
+        au_midname   = fb2.get_auth_midname ();
+        au_lastname  = fb2.get_auth_lastname ();
     }
 
-    int table_create (sqlite3 * db);
-    int recWrite     (sqlite3 * db);
-    int recRead      (sqlite3 * db);
+    int get_id ()     {  return au_id;  }
+    const char * get_firstname() {    return au_firstname.c_str();  }
+    const char * get_midname  () {    return au_midname.c_str();  }
+    const char * get_lastname () {    return au_lastname.c_str();  }
 
-    int getId ()     {  return au_id;  }
+    void set_id (int value)     {  au_id = value;  }
+    void set_firstname(std::string& value) {    au_firstname = value;  }
+    void set_midname  (std::string& value) {    au_midname = value;  }
+    void set_lastname (std::string& value) {    au_lastname = value;  }
 
     void clear ()        // clear all fields
     {
@@ -131,13 +144,12 @@ public:
         else
            return true;    
     }
-
-    friend class recBook;
 };
 
 // class recBook - запись о книге в БД
 //
-class recBook  {
+class recBook  
+{
     int             book_id;        // book id
     int             book_au_id;     // book author id
     std::string     book_title;     // book title
@@ -151,33 +163,37 @@ public:
     recBook ();
     recBook (const recBook& other) = delete;
     recBook (recBook&& other) = delete;
-    recBook (const fb2info& fb2)  // construct from fb2 info
+    recBook (fb2info& fb2)  // construct from fb2 info
     {
         book_id    = 0;
         book_au_id = 0;
-        book_title = fb2.book_title;
-        book_lang  = fb2.lang;
-        book_src_lang = fb2.src_lang;
+        book_title = fb2.get_title();
+        book_lang  = fb2.get_lang();
+        book_src_lang = fb2.get_src_lang();
         book_transl_id = 0;
-        book_year = atoi (fb2.year.c_str());
-        book_path = fb2.location;
+        book_year = atoi (fb2.get_year());
+        book_path = fb2.get_location();
     }
 
     ~recBook () = default;
 
-    int table_create (sqlite3 * db);
-    int recWrite     (sqlite3 * db);
-    int recRead      (sqlite3 * db);
+    int get_id ()     {  return book_id;  }
+    int get_auth_id ()     {  return book_au_id;  }
+    int get_transl_id ()     {  return book_transl_id;  }
+    const char * get_title () {  return book_title.c_str();  }
+    const char * get_lang ()  {  return book_lang.c_str();  }
+    const char * get_src_lang () {  return book_src_lang.c_str();  }
+    int get_year ()     {  return book_year;  }
+    const char * get_location () {  return book_path.c_str();  }
 
-    void setAuthorId (int idValue)
-    {
-        book_au_id = idValue;
-    }
-
-    void setTranslId (int idValue)
-    {
-        book_transl_id = idValue;
-    }
+    void    set_id (int id)         {  book_id = id;  }
+    void    set_auth_id (int id)    {  book_au_id = id;  }
+    void    set_transl_id (int id)  {  book_transl_id = id;  }
+    void    set_title (const char* s) {  book_title = s;  }
+    void    set_lang (const char* s)  {  book_lang = s;  }
+    void    set_src_lang (const char* s) {  book_src_lang = s;  }
+    void    set_year (int year)     {  book_year = year;  }
+    void    set_location(const char* s) {  book_path = s;  }
 
     void clear ()       // clear all fields
     {
@@ -190,41 +206,37 @@ public:
         book_year = 0;
         book_path.clear ();
     }
-
-    friend class recAnnotation;
 };
 
 // class recAnnotation - запись аннотации книги в БД
 //
-class recAnnotation {
+class recAnnotation 
+{
     int             anno_book_id;   // book id the annotation is for
     std::string     anno_text;      // annotation itself (text) 
 
 public:
     recAnnotation ();
-    recAnnotation (const fb2info& fb2)
+    recAnnotation (fb2info& fb2)
     {
         anno_book_id = 0;
-        anno_text = fb2.annotation;
+        anno_text = fb2.get_annotation ();
     }
     recAnnotation (const recAnnotation& other) = delete;
     recAnnotation (recAnnotation&& other) = delete;
     ~recAnnotation () = default;
 
-    recAnnotation &operator=(const fb2info& fb2)    // assign from fb2 info
+    recAnnotation &operator=(fb2info& fb2)    // assign from fb2 info
     {
-        anno_text = fb2.annotation;
-    }
-
-    recAnnotation &operator=(const recBook& rb)    // assign from recBook
-    {
-        anno_book_id = rb.book_id;
+        anno_text = fb2.get_annotation ();
         return *this;
     }
 
-    int table_create (sqlite3 * db);
-    int recWrite     (sqlite3 * db);
-    int recRead      (sqlite3 * db);
+    int get_book_id ()       {  return anno_book_id;  }
+    const char * get_text () {  return anno_text.c_str();  }
+
+    void    set_book_id (int id)     {  anno_book_id = id;  }
+    void    set_text (const char* s) {  anno_text = s;  }
 
     void clear ()        // clear all fields
     {
@@ -234,9 +246,69 @@ public:
 
     bool valid ()        // validate all fields
     {
-        return !anno_text.empty() && anno_text.length() > 5;
+        return ((anno_book_id != 0) && (!anno_text.empty()) && (anno_text.length() > 5));
     }
 };
 
+// class recGenre - запись о жанре в БД
+//
+class recGenre 
+{
+    int             genre_id;   // genre id 
+    std::string     genre_name; // genre name (text) 
+
+public:
+    recGenre ();
+    recGenre (const char* s) : genre_name (s), genre_id (0) { }
+    recGenre (const recGenre& other) = delete;
+    recGenre (recGenre&& other) = delete;
+    ~recGenre () = default;
+
+    int get_id ()       {  return genre_id;  }
+    const char * get_name () {  return genre_name.c_str();  }
+
+    void    set_id (int id)     {  genre_id = id;  }
+    void    set_name (const char* s) {  genre_name = s;  }
+
+    void clear ()        // clear all fields
+    {
+        genre_id = 0;
+        genre_name.clear();
+    }
+};
+
+// class recBookGenre - запись о жанре книги в БД
+//
+class recBookGenre 
+{
+    int             genre_id;   // genre id 
+    int             book_id;    // book id 
+
+public:
+    recBookGenre (int idbook, int idgenre) : book_id (idbook), genre_id (idgenre)  { }
+    recBookGenre (const recBookGenre& other) = delete;
+    recBookGenre (recBookGenre&& other) = delete;
+    ~recBookGenre () = default;
+
+    int get_id ()       {  return genre_id;  }
+    int get_book_id ()  {  return book_id;  }
+
+    void    set_id      (int id)     {  genre_id = id;  }
+    void    set_book_id (int id)     {  book_id  = id;  }
+
+    void clear ()        // clear all fields
+    {
+        book_id  = 0;
+        genre_id = 0;
+    }
+
+    bool valid ()        // validate all fields
+    {
+        return ((book_id != 0) && (genre_id != 0));
+    }
+};
+
+recAuthor getAuthor     (fb2info& fb2);
+recAuthor getTranslator (fb2info& fb2);
 
 
