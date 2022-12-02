@@ -6,15 +6,12 @@
 #include <string>
 #include <filesystem>
 
-#include "sqlite3.h"
+#include <iostream>
 
 #include "book2base.hpp"
+#include "database.hpp"
 
-bool auTableCreated = false;
-bool bkTableCreated = false;
-bool anTableCreated = false;
-
-bool book_processing (sqlite3 *db, const char* fileName)
+bool book_processing (iDatabase *db, const char* fileName)
 {
     fb2info info (fileName);
 
@@ -24,56 +21,51 @@ bool book_processing (sqlite3 *db, const char* fileName)
     // here we have a valid book data 
     recAuthor   author = getAuthor (info);  // Author information
 
-    if (!auTableCreated)        // table has not been created
-    {
-        if (author.table_create (db)) 
-            return false;
-        auTableCreated = true;
-    }
+    if (db->readAuthor(author))     // not found
+        db->addAuthor(author);      // add a new rec
 
-    if (author.recRead (db))    // not found
-        author.recWrite (db);   // add a new rec
+    recBook     book (info);        // Book information
 
-    recBook     book (info);    // Book information
-
-    book.setAuthorId (author.getId());  // set Author Id for book
+    book.set_auth_id (author.get_id());  // set Author Id for book
         
     // translator - a kind of authors
     recAuthor   translator = getTranslator (info);
 
     if (translator.valid())             // has valid fields
     {
-        if (translator.recRead (db))    // not found
-            translator.recWrite (db);   // add a new rec
+        if (db->readAuthor(translator)) // not found
+            db->addAuthor(translator);  // add a new rec
 
-        book.setTranslId (translator.getId());  // set Translator Id for book
+        book.set_transl_id (translator.get_id());  // set Translator Id for book
     }
 
-    if (!bkTableCreated)            // table has not been created
-    {
-        if (book.table_create (db))
-            return false;
-        bkTableCreated = true;
-    }
-
-    if (book.recRead (db))          // not found
-        book.recWrite (db);         // add a new rec
+    if (db->readBook (book))    // not found
+        db->addBook (book);     // add a new rec
 
     recAnnotation   anno (info);    // Annotation
 
-    anno = book;                    // book_id
-
-    if (!anTableCreated)            // table has not been created
-    {
-        if (anno.table_create (db))
-            return false;
-        anTableCreated = true;
-    }
+    anno.set_book_id (book.get_id());
 
     if (anno.valid())               // has valid fields
     {
-        if (anno.recRead (db))      // not found
-            anno.recWrite (db);     // add a new rec
+        if (db->readAnnotation (anno))  // not found
+            db->addAnnotation (anno);   // add a new rec
+    }
+
+    for (std::string sGenre : info.get_genre())
+    {
+        recGenre        genre (sGenre.c_str());      // Genre
+
+        if (db->readGenre (genre))      // not found
+            db->addGenre (genre);       // add a new rec
+
+        recBookGenre    bkGenre (book.get_id(), genre.get_id ());  // Book genre
+
+        if (bkGenre.valid())
+        {
+            if (db->readBookGenre (bkGenre))    // not found
+                db->addBookGenre (bkGenre);     // add a new rec
+        }
     }
 
     return true;

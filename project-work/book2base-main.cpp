@@ -7,10 +7,9 @@
 #include <chrono>   // библиотека для работы с метками времени 
 
 #include "book2base.hpp"
+#include "database.hpp"
 
 namespace fs = std::filesystem;
-
-bool book_processing (sqlite3* db, const char* fn);
 
 void usage (char * progPath)
 {
@@ -28,16 +27,15 @@ int main (int argc, char ** argv)
         return 1;
     }
 
-    sqlite3 *db = nullptr;          // data base
+    iDatabase * db = new sqlite3db;
 
-    char *	dbName = argv [1];
     int rc = 0;
 
-    if (db_open (dbName, &db))       // db open failed
+    if (db->db_open (argv [1]))       // db open failed
     {
-      std::cerr << "ERROR! Can't open database: " <<  dbName << "\n";
-      std::cerr << "[ " << db_error (db) << " ]" << std::endl;
-      db_close (db);
+      std::cerr << "ERROR! Can't open database: " << argv [1] << "\n";
+      std::cerr << "[ " << db->db_error () << " ]" << std::endl;
+      db->db_close ();
       return 2;
     }
 
@@ -51,8 +49,8 @@ int main (int argc, char ** argv)
         {
             if (entry.path().extension() == ".fb2") 
             {
-               book_processing (db, entry.path().string().c_str());
-               ++nCount;
+               if (book_processing (db, entry.path().string().c_str()))
+                  ++nCount;
             }
         }
     }
@@ -71,8 +69,8 @@ int main (int argc, char ** argv)
              if (fs::is_regular_file (st)              // is regular
               && p.extension() == ".fb2")              // is fb2 file
               {
-                book_processing (db, p.string().c_str());
-                ++nCount;
+                if (book_processing (db, p.string().c_str()))
+                    ++nCount;
               }
              else if (fs::is_directory (st)) 
              {
@@ -80,8 +78,8 @@ int main (int argc, char ** argv)
                 {
                    if (entry.path().extension() == ".fb2") 
                    {
-                      book_processing (db, entry.path().string().c_str());
-                      ++nCount;
+                      if (book_processing (db, entry.path().string().c_str()))
+                          ++nCount;
                    }
                 }
              }
@@ -97,7 +95,7 @@ int main (int argc, char ** argv)
     std::cerr << "Number of performed books: " << nCount << ".\n";
     std::cerr << "Elapsed time is " << millis.count() << " milliseconds" << std::endl;
 
-    db_close (db);
+    db->db_close ();
 
     return rc;
 }
