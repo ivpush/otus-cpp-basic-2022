@@ -70,6 +70,12 @@ bool fb2info::read (const char * filename)
       }
     };
 
+    if (!doc.child("FictionBook"))
+    {
+        std::cerr << "Wrong format - " << filename << std::endl; 
+        return valid = false;
+    }
+
     sItem = doc.child("FictionBook").child("description").child("title-info").child("book-title").text().as_string();
     checkIt (book_title);
 
@@ -97,11 +103,12 @@ bool fb2info::read (const char * filename)
 
     std::string genreTmp;
 	sItem.erase();
-    for (xml_node genre = doc.child("FictionBook").child("description").child("title-info").child("genre").first_child(); genre; genre = genre.next_sibling())
+    for (xml_node genre = doc.child("FictionBook").child("description").child("title-info").child("genre"); genre; genre = genre.next_sibling("genre"))
 	{
         sItem = genre.text().as_string();
     	checkIt (genreTmp);
-		book_genre.push_back (genreTmp);
+        if (!genreTmp.empty())
+		    book_genre.push_back (genreTmp);
 		genreTmp.clear();
 	}
 

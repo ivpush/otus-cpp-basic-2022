@@ -162,7 +162,7 @@ int sqlite3db::create_tables()
     // Create Genre-Book table - association of genre and book
     //
 	sql = "CREATE TABLE IF NOT EXISTS BookGenres ("
-          "id_book   INTEGER PRIMARY KEY, "
+          "id_book   INTEGER, "
        	  "id_genre  INTEGER "
 		  " );" ;
 
